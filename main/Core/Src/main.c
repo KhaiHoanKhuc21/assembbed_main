@@ -11,6 +11,7 @@ float Kalman1DOutput[] = {0, 0};
 float ax, ay, az;
 float AnglePitch;
 int mode;
+
 void TIM2_Manual_Init(void) {
     RCC->APB1ENR |= (1 << 0);
 
@@ -60,14 +61,22 @@ double computePID(double input, double setpoint, double KP, double KI, double KD
 }
 
 void kalman_1d(float KalmanState, float KalmanUncertainty, float KalmanInput, float KalmanMeasurement) {
-    KalmanState = KalmanState + 0.004 * KalmanInput;                   // Dự đoán trạng thái (dùng dt = 0.004s)
-    KalmanUncertainty = KalmanUncertainty + 0.004 * 0.004 * 4 * 4;    // Dự đoán độ không đảm bảo
-    float KalmanGain = KalmanUncertainty * 1 / (1 * KalmanUncertainty + 3 * 3); // Tính gain
-    KalmanState = KalmanState + KalmanGain * (KalmanMeasurement - KalmanState); // Cập nhật trạng thái
-    KalmanUncertainty = (1 - KalmanGain) * KalmanUncertainty;         // Cập nhật độ không đảm bảo
-    Kalman1DOutput[0] = KalmanState;                                  // Góc đã lọc
-    Kalman1DOutput[1] = KalmanUncertainty;                            // Độ không đảm bảo mới
+    const float dt = 0.004f;
+    const float process_noise_variance = 1.0f;   // giảm nhẹ so với 4.0 để tin tưởng mô hình hơn
+    const float measurement_noise_variance = 16.0f; // tăng nhẹ (ví dụ 4² = 16), để giảm ảnh hưởng của nhiễu cảm biến
+
+    KalmanState += dt * KalmanInput;
+    KalmanUncertainty += dt * dt * process_noise_variance;
+
+    float KalmanGain = KalmanUncertainty / (KalmanUncertainty + measurement_noise_variance);
+
+    KalmanState += KalmanGain * (KalmanMeasurement - KalmanState);
+    KalmanUncertainty *= (1.0f - KalmanGain);
+
+    Kalman1DOutput[0] = KalmanState;
+    Kalman1DOutput[1] = KalmanUncertainty;
 }
+
 
 void SystemClock_Config(void) {
     RCC->CR |= (1 << 0);
@@ -334,10 +343,11 @@ int main(void) {
             double motorSpeed ;
             AnglePitch = atan2(-ax, sqrt(ay * ay + az * az));
             RatePitch = gyroData[1] / 131.0f;
+
             double setpoint = 0;
-            double Kp=500;
-            double Ki=0;
-            double Kd=0;
+            double Kp=600;
+            double Ki=15;
+            double Kd=10;
 
             kalman_1d(KalmanAnglePitch, KalmanUncertaintyAnglePitch, RatePitch * PI / 180.0f, AnglePitch);
             KalmanAnglePitch = Kalman1DOutput[0] ;
