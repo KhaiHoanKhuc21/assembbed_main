@@ -61,7 +61,7 @@ double computePID(double input, double setpoint, double KP, double KI, double KD
 }
 
 void kalman_1d(float KalmanState, float KalmanUncertainty, float KalmanInput, float KalmanMeasurement) {
-    const float dt = 0.004f;
+    const float dt = 0.0025f;
     const float process_noise_variance = 1.0f;   // giảm nhẹ so với 4.0 để tin tưởng mô hình hơn
     const float measurement_noise_variance = 16.0f; // tăng nhẹ (ví dụ 4² = 16), để giảm ảnh hưởng của nhiễu cảm biến
 
@@ -344,10 +344,10 @@ int main(void) {
             AnglePitch = atan2(-ax, sqrt(ay * ay + az * az));
             RatePitch = gyroData[1] / 131.0f;
 
-            double setpoint = 0;
-            double Kp=600;
-            double Ki=15;
-            double Kd=10;
+            double setpoint = -0.02;
+            double Kp=3000;
+            double Ki=0;
+            double Kd=12.5;
 
             kalman_1d(KalmanAnglePitch, KalmanUncertaintyAnglePitch, RatePitch * PI / 180.0f, AnglePitch);
             KalmanAnglePitch = Kalman1DOutput[0] ;
